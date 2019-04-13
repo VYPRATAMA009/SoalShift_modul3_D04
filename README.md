@@ -81,19 +81,293 @@ h.	Menggunakan thread, socket, shared memory
 ### jawaban
 membuatkan server penjual
 ```
-kode
+#include <stdio.h>
+#include <sys/socket.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#define PORT 8080
+
+void *tambah(void *ptr);
+
+void *tambah(void *ptr){
+	int *stok;
+	stok = (int *)ptr;
+	*stok += 1;
+}
+
+int main(int argc, char const *argv[]) {
+    int server_fd, new_socket, valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    char buffer[1024] = {0};
+    //char *hello = "Hello from server";
+      
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+      
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons( PORT );
+      
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address))<0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {
+        perror("accept");
+        exit(EXIT_FAILURE);
+    }
+
+    key_t key = 1234;
+    int *stok;
+
+    int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
+    stok = shmat(shmid, NULL, 0);
+
+    pthread_t thread1;
+    int iret1;
+
+    valread = read( new_socket , buffer, 1024);
+    //printf("%d\n", strcmp(buffer, "tambah"));
+    if(strcmp(buffer, "tambah") == 0){
+    	iret1 = pthread_create( &thread1, NULL, tambah, (void*) stok); //membuat thread pertama
+    	if(iret1) //jika eror
+    	{
+        	fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
+        	exit(EXIT_FAILURE);
+    	}
+	pthread_join(thread1, NULL);
+    }
+    //printf("%s\n",buffer );
+    //send(new_socket , hello , strlen(hello) , 0 );
+    //printf("Hello message sent\n");
+    return 0;
+}
 ```
 membuatkan server pembeli
 ```
-kode
+#include <stdio.h>
+#include <sys/socket.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <pthread.h>
+#define PORT 8080
+
+void *beli(void *ptr);
+void *print(void *ptr);
+
+void *beli(void *ptr){
+	int *stok;
+	stok = (int *)ptr;
+	if (*stok > 0){
+		*stok -= 1;
+	}
+
+}
+
+void *print(void *ptr){
+	int *stok;
+	stok = (int *)ptr;
+	printf("Stok barang: %d\n", *stok);
+	sleep(5);
+}
+
+int main(int argc, char const *argv[]) {
+    int server_fd, new_socket, valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    char buffer[1024] = {0};
+    char *hello1 = "transaksi berhasil";
+    char *hello2 = "transaksi gagal";
+      
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+      
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons( PORT );
+      
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address))<0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {
+        perror("accept");
+        exit(EXIT_FAILURE);
+    }
+
+    key_t key = 1234;
+    int *stok;
+
+    int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
+    stok = shmat(shmid, NULL, 0);
+
+    pthread_t thread1, thread2;
+    int  iret1, iret2;
+
+    valread = read( new_socket , buffer, 1024);
+//    printf("%s\n",buffer );
+    if(strcmp(buffer, "beli")==0){
+    	iret1 = pthread_create( &thread1, NULL, beli, (void*) stok); //membuat thread pertama
+    	if(iret1) //jika eror
+   	{
+       	 	fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
+       		 exit(EXIT_FAILURE);
+   	}
+	pthread_join(thread1, NULL);
+    }
+
+    if(*stok > 0){
+    	send(new_socket , hello1 , strlen(hello1) , 0);
+    }
+    else{
+	send(new_socket, hello2, strlen(hello2), 0);
+    }
+   // shmdt(stok);
+   // shmctl(shmid, IPC_RMID, NULL);
+    while(1){
+    	iret2 = pthread_create( &thread2, NULL, print, (void*) stok);//membuat thread kedua
+    	if(iret2)//jika gagal
+    	{
+        	fprintf(stderr,"Error - pthread_create() return code: %d\n",iret2);
+        	exit(EXIT_FAILURE);
+    	}
+	pthread_join(thread2, NULL);
+    }
+    //printf("Hello message sent\n");
+    return 0;
+}
 ```
 membuatkan client pembeli
 ```
-kode
+#include <stdio.h>
+#include <sys/socket.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#define PORT 8080
+  
+int main(int argc, char const *argv[]) {
+    struct sockaddr_in address;
+    int sock = 0, valread;
+    struct sockaddr_in serv_addr;
+   // char *hello = "tambah";
+    char buffer[1024] = {0};
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        return -1;
+    }
+  
+    memset(&serv_addr, '0', sizeof(serv_addr));
+  
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+      
+    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0) {
+        printf("\nInvalid address/ Address not supported \n");
+        return -1;
+    }
+  
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        printf("\nConnection Failed \n");
+        return -1;
+    }
+
+    char hello[20];
+    scanf("%s", hello);
+
+    send(sock , hello , strlen(hello) , 0 );
+    //printf("Hello message sent\n");
+    //valread = read( sock , buffer, 1024);
+    //printf("%s\n",buffer );
+    return 0;
+}
 ```
 membuatkan client penjual
 ```
-kode
+#include <stdio.h>
+#include <sys/socket.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#define PORT 8080
+  
+int main(int argc, char const *argv[]) {
+    struct sockaddr_in address;
+    int sock = 0, valread;
+    struct sockaddr_in serv_addr;
+   // char *hello = "tambah";
+    char buffer[1024] = {0};
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        return -1;
+    }
+  
+    memset(&serv_addr, '0', sizeof(serv_addr));
+  
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+      
+    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0) {
+        printf("\nInvalid address/ Address not supported \n");
+        return -1;
+    }
+  
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        printf("\nConnection Failed \n");
+        return -1;
+    }
+
+    char hello[20];
+    scanf("%s", hello);
+
+    send(sock , hello , strlen(hello) , 0 );
+    //printf("Hello message sent\n");
+    //valread = read( sock , buffer, 1024);
+    //printf("%s\n",buffer );
+    return 0;
+}
 ```
 
 ## SOAL 3
@@ -299,21 +573,25 @@ Dengan Syarat :
 #include<sys/types.h>
 #include<sys/wait.h>
 
-pthread_t treid3,treid1,treid2; /
-
+char str[300];
+pthread_t treid1, treid3;
 
 void* ambil(){
         system("ps -aux | head -11  > /home/vinsensius009/Documents/FolderProses1/SimpanProses1.txt");
         system("ps -aux | head -11  > /home/vinsensius009/Documents/FolderProses2/SimpanProses2.txt");
 
-}
+//}
 
-void* zipkan (){
-         system("zip -r /home/vinsensius009/Documents/FolderProses1/KompresProses1 /home/vinsensius009/Documents/FolderProses1/SimpanProses1.txt");
-         system("rm /home/vinsensius009/Documents/FolderProses1/SimpanProses1.txt");
- 
-        system("zip -r /home/vinsensius009/Documents/FolderProses2/KompresProses2 /home/vinsensius009/Documents/FolderProses2/SimpanProses2.txt");
-         system("rm /home/vinsensius009/Documents/FolderProses2/SimpanProses2.txt");
+//void* zipkan ()
+//{     
+        strcpy(str, "");
+        sprintf(str, "zip -qmj /home/vinsensius009/Documents/FolderProses1/KompresProses1 /home/vinsensius009/Documents/FolderProses1/SimpanProses1.txt");
+        system(str); 
+        system("rm /home/vinsensius009/Documents/FolderProses1/SimpanProses1.txt");
+        (str, "");
+        sprintf(str, "zip -qmj /home/vinsensius009/Documents/FolderProses2/KompresProses2 /home/vinsensius009/Documents/FolderProses2/SimpanProses2.txt");
+        system(str);         
+        system("rm /home/vinsensius009/Documents/FolderProses2/SimpanProses2.txt");
 
 }
 
@@ -325,23 +603,24 @@ void* unzipkan1 (){
 }
 
 
-int main(void)
-{
-//int waktu;
+int main(void){
     pthread_create(&(treid1), NULL, ambil, NULL);
     pthread_join(treid1,NULL); 
-    pthread_create(&(treid2), NULL, zipkan, NULL);
-    pthread_join(treid2,NULL);
+    //pthread_create(&(treid2), NULL, zipkan, NULL);
+    //pthread_join(treid2,NULL);
     printf("Menunggu 15 detik untuk mengekstrak kembali");
     
-//sleep(5);
-    printf("tes");
+    sleep(15);
+    printf("proses finish");
     pthread_create(&(treid3), NULL, unzipkan1, NULL);
     pthread_join(treid3, NULL);
 // pthread_create(&(treid1), NULL, unzipkan1, NULL);
 
     return 0;
 }
+
+
+
 ```
 ## SOAL 5
 ### Terdapat kendala,kurang sistem clear
