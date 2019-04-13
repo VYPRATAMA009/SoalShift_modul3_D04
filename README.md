@@ -22,7 +22,7 @@ void *faktorial( void *ptr )
     printf("%d!= %lld\n", *a, tampung);
 }
   ```
-  Fungsi main nya, di sini membuat tempat input, lalu mensorting nilai inputan dari kecil ke besar, lalu memanggil fungsi faktorial
+  Fungsi main nya, di sini membuat tempat input, lalu mensorting (menggunakan bubble) nilai inputan dari kecil ke besar, lalu memanggil fungsi faktorial
   ```
   int main()
 {
@@ -552,6 +552,7 @@ int main()
     exit(EXIT_SUCCESS);
 }
 ```
+Penjelasan, membuat 2 thread untuk Iraj & Agmal, di sini terdapat beberapa fungsi seperti menambah status, mensuspend agmal dan mensispend iraj, 
 
 ## SOAL 4
 ### masih belum selesai
@@ -619,11 +620,11 @@ int main(void){
     return 0;
 }
 
-
-
 ```
+Penjelasan, membuat beberapa fungsi system call untuk mengambil, menzip, dan mengunzip syslog yang didadpat,fungsi ambil menggunakan ps -aux untuk mengambil syslog dan meletakkannya kedalam file.txt, kemudian fungsi zip, mencompress .txt tsb dan menghapus .txt yang lama, dan fungsi unzip untuk mengekstrak file.txt tsb, disini diberi jeda sleep(15) untuk waktu zip file dan mengekstraknya
+
+
 ## SOAL 5
-### Terdapat kendala,kurang sistem clear
 Angga, adik Jiwang akan berulang tahun yang ke sembilan pada tanggal 6 April besok. Karena lupa menabung, Jiwang tidak mempunyai uang sepeserpun untuk membelikan Angga kado. Kamu sebagai sahabat Jiwang ingin membantu Jiwang membahagiakan adiknya sehingga kamu menawarkan bantuan membuatkan permainan komputer sederhana menggunakan program C. Jiwang sangat menyukai idemu tersebut. Berikut permainan yang Jiwang minta. 
 a.	Pemain memelihara seekor monster lucu dalam permainan. Pemain dapat  memberi nama pada monsternya.
 b.	Monster pemain memiliki hunger status yang berawal dengan nilai 200 (maksimalnya) dan nanti akan berkurang 5 tiap 10 detik.Ketika hunger status mencapai angka nol, pemain akan kalah. Hunger status dapat bertambah 15 apabila pemain memberi makan kepada monster, tetapi banyak makanan terbatas dan harus beli di Market.
